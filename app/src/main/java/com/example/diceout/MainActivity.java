@@ -1,10 +1,17 @@
 package com.example.diceout;
 
+import android.Manifest;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.media.Image;
 import android.os.Bundle;
+import android.os.Environment;
+import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
@@ -22,6 +29,8 @@ import java.util.Random;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final int REQUEST_PERMISSION_WRITE = 1001;
+    private boolean permissionGranted;
     //Field to create score
     int score;
 
@@ -35,7 +44,6 @@ public class MainActivity extends AppCompatActivity {
 
     //Field to hold the score text
     TextView scoreText;
-
     ArrayList<Integer> dice;
 
     ArrayList<ImageView> diceImageViews;
@@ -45,10 +53,10 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -56,26 +64,31 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        if (!permissionGranted) {
+            checkPermissions();
+            return;
+        }
+
         //set initial score
         score = 0;
 
         Toast.makeText(getApplicationContext(),"Welcome to Dice Out!",Toast.LENGTH_SHORT).show();
 
-        rollResult = (TextView) findViewById(R.id.rollResult);
-        scoreText = (TextView) findViewById(R.id.scoreText);
+        rollResult = findViewById(R.id.rollResult);
+        scoreText = findViewById(R.id.scoreText);
 
         //Initialize the Random number generator
         rand = new Random();
 
         //Create ArrayList container for the dice values
-        dice = new ArrayList<Integer>();
+        dice = new ArrayList<>();
 
-        ImageView die1Image = (ImageView) findViewById(R.id.die1Image);
-        ImageView die2Image = (ImageView) findViewById(R.id.die2Image);
-        ImageView die3Image = (ImageView) findViewById(R.id.die3Image);
+        ImageView die1Image = findViewById(R.id.die1Image);
+        ImageView die2Image = findViewById(R.id.die2Image);
+        ImageView die3Image = findViewById(R.id.die3Image);
 
         //Create ArrayList container for the dice images
-        diceImageViews = new ArrayList<ImageView>();
+        diceImageViews = new ArrayList<>();
         diceImageViews.add(die1Image);
         diceImageViews.add(die2Image);
         diceImageViews.add(die3Image);
@@ -119,10 +132,9 @@ public class MainActivity extends AppCompatActivity {
         }else
             msg = "You didn't score ths roll. Try again!";
 
-        //Update app to display the result messge
+        //Update app to display the result message
         rollResult.setText(msg);
-        scoreText.setText("Score: " + score);
-
+        scoreText.setText(String.format(getString(R.string.set_score), score));
 
     }
 
@@ -142,9 +154,58 @@ public class MainActivity extends AppCompatActivity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
             return true;
         }
 
+
         return super.onOptionsItemSelected(item);
+    }
+
+    // Checks if external storage is available for read and write
+    public boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        return Environment.MEDIA_MOUNTED.equals(state);
+    }
+
+    // Initiate request for permissions.
+    private boolean checkPermissions() {
+
+        if (!isExternalStorageWritable()) {
+            Toast.makeText(this, "This app only works on devices with usable external storage",
+                    Toast.LENGTH_SHORT).show();
+            return false;
+        }
+
+        int permissionCheck = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    REQUEST_PERMISSION_WRITE);
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    // Handle permissions result
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String permissions[],
+                                           @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case REQUEST_PERMISSION_WRITE:
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    permissionGranted = true;
+                    Toast.makeText(this, "External storage permission granted",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "You must grant permission!", Toast.LENGTH_SHORT).show();
+                }
+                break;
+        }
     }
 }
